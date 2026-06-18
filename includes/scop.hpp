@@ -24,7 +24,14 @@
 // class vulkancontext;
 // class mesh;
 // class camera;
-
+/*
+Scop
+ ├── window (SDL2)
+ ├── vulkan_context (instance + surface)
+ ├── device
+ ├── swapchain
+ ├── pipeline
+*/
 class Scop
 {
     public:

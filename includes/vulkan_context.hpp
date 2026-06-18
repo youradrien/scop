@@ -14,7 +14,7 @@
 
 #include <memory>
 #include <string>
-
+#include <vector>
 #include <mesh.hpp>
 #include "window.hpp"
 
@@ -29,11 +29,45 @@ class vulkan_context
         void wait_idle();
 
     private:
-        void createInstance();
-        void createSurface();
-        void pickPhysicalDevice();
-        void createLogicalDevice();
-        void createSwapchain();
-        void createRenderPass();
-        void createPipeline();
+        void init_vulkan();
+        void create_Instance();
+        void create_Surface();
+        void pick_Physical_Device();
+        void create_Logical_Device();
+        void create_Swapchain();
+        void create_Image_Views();
+        void create_RenderPass();
+        void create_Pipeline();
+        void create_Framebuffers();
+        void create_CommandBuffers();
+
+    private:
+        window& _window;
+
+        // vulkan instance
+        VkInstance _instance;
+        // surface SDL → Vulkan
+        VkSurfaceKHR _surface;
+
+        // gpu physique device
+        VkPhysicalDevice _physical_Device;
+        // logical device
+        VkDevice _device;
+
+        // queues?
+        VkQueue _graphics_Queue;
+        VkQueue _present_Queue;
+
+        VkSwapchainKHR _swapchain;
+        std::vector<VkImage> _images;
+        std::vector<VkImageView> _imageViews;
+
+        VkRenderPass _renderPass;
+        VkPipeline _pipeline;
+        VkPipelineLayout _pipelineLayout;
+
+        std::vector<VkFramebuffer> _framebuffers;
+        std::vector<VkCommandBuffer> _cmdBuffers;
+
+        VkCommandPool _cmdPool;
 };
