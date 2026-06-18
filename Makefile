@@ -1,0 +1,69 @@
+NAME = scop
+
+CXX = c++
+CXXFLAGS = -Wall -Wextra -Werror -std=c++11 -O2
+
+# Vulkan + GLFW + X11 (Linux)
+INCLUDES = -Iinclude -Ilib/SDL2/include -Ilib/vulkan/include
+LIBS = -lvulkan -lglfw -lX11 -lXrandr -lXi -ldl -lpthread
+LIBS = -Llib/SDL2/lib -lSDL2 -lvulkan
+
+SRC_DIR = src
+OBJ_DIR = obj
+
+SRCS = \
+$(SRC_DIR)/main.cpp \
+$(SRC_DIR)/scop.cpp \
+$(SRC_DIR)/Window.cpp \
+$(SRC_DIR)/VulkanContext.cpp \
+$(SRC_DIR)/Mesh.cpp \
+$(SRC_DIR)/ObjLoader.cpp \
+$(SRC_DIR)/Camera.cpp
+
+OBJS = $(SRCS:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
+
+# ---------- RULES ----------
+
+all: check $(NAME)
+
+$(NAME): $(OBJS)
+	$(CXX) $(CXXFLAGS) $(OBJS) -o $(NAME) $(LIBS)
+
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@mkdir -p $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+clean:
+	rm -rf $(OBJ_DIR)
+
+fclean: clean
+	rm -f $(NAME)
+
+re: fclean all
+
+UNAME_S := $(shell uname -s)
+check:
+	@command -v pkg-config >/dev/null 2>&1 || ( \
+		echo "\033[1;33mpkg-config is required\033[0m" && exit 1 )
+
+	@pkg-config --exists vulkan || ( \
+		echo "\033[1;33m[VULKAN] not installed\033[0m"; \
+		if [ "$(UNAME_S)" = "Darwin" ]; then \
+			echo "\033[1;32m👉 try: brew install vulkan-volk (macOS)\033[0m"; \
+		else \
+			echo "\033[1;32m👉 try: sudo apt install -y vulkan-tools libvulkan-dev \033[0m"; \
+		fi; \
+		exit 1 )
+
+	@pkg-config --exists sdl2 || ( \
+		echo "\033[1;33m[SDL2] not installed\033[0m"; \
+		if [ "$(UNAME_S)" = "Darwin" ]; then \
+			echo "\033[1;32minstall with: brew install sdl2 \033[0m"; \
+		else \
+			echo "\033[1;32minstall with: sudo apt install -y libsdl2-dev \033[0m"; \
+		fi; \
+		exit 1 )
+
+	@echo "\033[1;32mall dependencies found ✔\033[0m"
+
+.PHONY: all clean fclean re
