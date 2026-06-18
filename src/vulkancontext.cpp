@@ -1,19 +1,13 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.cpp                                           :+:      :+:    :+:   */
+/*   vulkancontext.cpp                                  :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: julessainthorant <marvin@42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/06/18 12:29:46 by julessainthor     #+#    #+#             */
-/*   Updated: 2026/06/18 12:29:47 by julessainthor    ###   ########.fr       */
+/*   Created: 2026/06/18 13:32:32 by julessainthor     #+#    #+#             */
+/*   Updated: 2026/06/18 13:32:33 by julessainthor    ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 
-int main(int argc, char** argv)
-{
-    (void)argc;
-    (void)argv;
-    return 0;
-}
