@@ -2,10 +2,12 @@ NAME = scop
 
 CXX = c++
 
-CXXFLAGS = -Wall -Wextra -Werror -std=c++11 -O2 \
--I/opt/homebrew/include
+CXXFLAGS = -Wall -Wextra -std=c++11 -O2 \
+-I/opt/homebrew/include -Iincludes
 
 LIBS = -L/opt/homebrew/lib -lglfw -lvulkan
+LIBS += -lSDL2
+
 # Vulkan + GLFW + X11 (Linux)
 INCLUDES = -Iinclude -Ilib/SDL2/include -Ilib/vulkan/include
 SRC_DIR = src
@@ -15,7 +17,7 @@ SRCS = \
 $(SRC_DIR)/main.cpp \
 $(SRC_DIR)/scop.cpp \
 $(SRC_DIR)/window.cpp \
-$(SRC_DIR)/vulkancontext.cpp \
+$(SRC_DIR)/vulkan_context.cpp \
 $(SRC_DIR)/mesh.cpp \
 $(SRC_DIR)/obj_loader.cpp \
 $(SRC_DIR)/camera.cpp

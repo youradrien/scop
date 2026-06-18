@@ -15,16 +15,17 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
-class Mesh
+class mesh
 {
     public:
-        bool loadOBJ(const std::string& path);
+        // bool loadOBJ(const std::string& path);
 
-        const std::vector<Vertex>& vertices() const;
-        const std::vector<uint32_t>& indices() const;
+        // const std::vector<Vertex>& vertices() const;
+        // const std::vector<uint32_t>& indices() const;
 
     private:
-        std::vector<Vertex> _vertices;
+        //std::vector<Vertex> _vertices;
         std::vector<uint32_t> _indices;
 };

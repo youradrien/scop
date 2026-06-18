@@ -10,26 +10,23 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-
 #pragma once
 
 #include <memory>
 #include <string>
 
-class Scop;
-class Window;
-class Mesh;
-class Camera;
+#include <mesh.hpp>
+#include "window.hpp"
 
-class VulkanContext
+class vulkan_context
 {
     public:
-        explicit VulkanContext(Window& window);
-        ~VulkanContext();
+        explicit vulkan_context(window& window);
+        ~vulkan_context();
 
-        void uploadMesh(const Mesh& mesh);
-        void drawFrame();
-        void waitIdle();
+        void upload_mesh(const mesh& mesh);
+        void draw_frame();
+        void wait_idle();
 
     private:
         void createInstance();

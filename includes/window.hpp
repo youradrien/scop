@@ -14,23 +14,34 @@
 
 #include <memory>
 #include <string>
+#include <cstdint>
+#include <iostream>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_vulkan.h>
 
-class VulkanContext;
 
-class Window
+class window
 {
     public:
+        window(uint32_t width, uint32_t height, const std::string& title);
+        ~window();
 
-        Window(uint32_t w, uint32_t h, const std::string& title);
-        ~Window();
+        window(const window&) = delete;
+        window& operator=(const window&) = delete;
 
-        bool shouldClose() const;
         void pollEvents();
 
-        GLFWwindow* handle() const;
+        // getters
+        SDL_Window* get() const;
+        uint32_t width() const;
+        uint32_t height() const;
+        bool should_close() const;
 
     private:
+        SDL_Window* _window;
 
-        GLFWwindow* _window;
+        uint32_t _width;
+        uint32_t _height;
 
+        bool _running;
 };

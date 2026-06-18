@@ -14,11 +14,16 @@
 
 #include <memory>
 #include <string>
+#include <iostream>
 
-class Window;
-class VulkanContext;
-class Mesh;
-class Camera;
+#include "window.hpp"
+#include "vulkan_context.hpp"
+#include "mesh.hpp"
+#include "camera.hpp"
+// class window;
+// class vulkancontext;
+// class mesh;
+// class camera;
 
 class Scop
 {
@@ -35,18 +40,17 @@ class Scop
     private:
 
         void init();
-        void mainLoop();
+        void loop();
         void cleanup();
-
         void update(float deltaTime);
         void render();
         
         std::string m_objFile;
 
-        std::unique_ptr<Window>         _window;
-        std::unique_ptr<VulkanContext>  _vk;
-        std::unique_ptr<Mesh>           _mesh;
-        std::unique_ptr<Camera>         _camera;
+        std::unique_ptr<window>         _window;
+        std::unique_ptr<vulkan_context>  _vk;
+        std::unique_ptr<mesh>           _mesh;
+        //std::unique_ptr<camera>         _camera;
 
         bool _running;
 };

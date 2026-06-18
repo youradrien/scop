@@ -10,4 +10,15 @@
 /*                                                                            */
 /* ************************************************************************** */
 
+#include "vulkan_context.hpp"
+
+vulkan_context::vulkan_context(window &window)
+{
+    (void)(window);
+}
+
+
+vulkan_context::~vulkan_context()
+{
+}
 
