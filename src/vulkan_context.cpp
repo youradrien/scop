@@ -45,6 +45,9 @@ vulkan_context::vulkan_context(window &_window): _window(_window)
 }
 vulkan_context::~vulkan_context()
 {
+    if(this->_instance){
+        vkDestroyInstance(instance, nullptr);
+    }
 }
 
 
@@ -65,19 +68,50 @@ void VulkanContext::initVulkan()
 // INSTANCE (SDL2 EXTENSIONS mandatory)
 void VulkanContext::create_Instance()
 {
-    uint32_t count;
+    uint32_t sdl2_extensions_count;
     // get SDL2 extensions
-    SDL_Vulkan_GetInstanceExtensions(_window.get(), &count, nullptr);
+    SDL_Vulkan_GetInstanceExtensions(
+        _window.get(), &sdl2_extensions_count, nullptr
+    );
+    std::vector<const char*> extensions(sdl2_extensions_count);
+    SDL_Vulkan_GetInstanceExtensions(
+        _window.get(), &sdl2_extensions_count, extensions.data()
+    );
 
-    std::vector<const char*> extensions(count);
-    SDL_Vulkan_GetInstanceExtensions(_window.get(), &count, extensions.data());
+    // VK app_info
+    VkApplicationInfo app_info{};
+    app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    app_info.pApplicationName = "scop";
+    app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+    app_info.pEngineName = "No Engine";
+    app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+    app_info.apiVersion = VK_API_VERSION_1_0;
 
+    // VK instance
     VkInstanceCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    info.enabledExtensionCount = count;
+    info.pApplicationInfo = &appInfo;
+    info.enabledExtensionCount = (sdl2_extensions_count);
     info.ppEnabledExtensionNames = extensions.data();
-
+    info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+    info.apiVersion = VK_API_VERSION_1_0;
+    info.pApplicationName = "scop";
+    info.enabledLayerCount = 0;
+    // create instance
     vkCreateInstance(&info, nullptr, &(this->_instance));
+    if (vkCreateInstance(&info, nullptr, &(this->instance)) != VK_SUCCESS) {
+        throw std::runtime_error("(VK) echec de la création de l'instance!");
+    }
+
+    // VK extensions support
+    uint32_t extension_count = 0;
+    vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
+    std::vector<VkExtensionProperties> extensions(extension_count);
+    vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, extensions.data());
+    std::cout << "(VK) extensions disponibles :\n";
+    for (const auto& extension : extensions) {
+        std::cout << '\t' << extension.extensionName << '\n';
+    }
 }
 
 // surface SDL2 -> Vulkan
