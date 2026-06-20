@@ -16,7 +16,12 @@
 #include <string>
 #include <vector>
 #include <mesh.hpp>
+#include <cstring>
 #include "window.hpp"
+
+#define VK_ENABLE_BETA_EXTENSIONS
+
+#include <vulkan/vulkan.h>
 
 class vulkan_context
 {
@@ -30,7 +35,7 @@ class vulkan_context
 
     private:
         void init_vulkan();
-        void create_Instance();
+        void create_instance();
         void create_Surface();
         void pick_Physical_Device();
         void create_Logical_Device();
@@ -50,24 +55,24 @@ class vulkan_context
         VkSurfaceKHR _surface;
 
         // gpu physique device
-        VkPhysicalDevice _physical_Device;
-        // logical device
-        VkDevice _device;
+        // VkPhysicalDevice _physical_Device;
+        // // logical device
+        // VkDevice _device;
 
-        // queues?
-        VkQueue _graphics_Queue;
-        VkQueue _present_Queue;
+        // // queues?
+        // VkQueue _graphics_Queue;
+        // VkQueue _present_Queue;
 
-        VkSwapchainKHR _swapchain;
-        std::vector<VkImage> _images;
-        std::vector<VkImageView> _imageViews;
+        // VkSwapchainKHR _swapchain;
+        // std::vector<VkImage> _images;
+        // std::vector<VkImageView> _imageViews;
 
-        VkRenderPass _renderPass;
-        VkPipeline _pipeline;
-        VkPipelineLayout _pipelineLayout;
+        // VkRenderPass _renderPass;
+        // VkPipeline _pipeline;
+        // VkPipelineLayout _pipelineLayout;
 
-        std::vector<VkFramebuffer> _framebuffers;
-        std::vector<VkCommandBuffer> _cmdBuffers;
+        // std::vector<VkFramebuffer> _framebuffers;
+        // std::vector<VkCommandBuffer> _cmdBuffers;
 
-        VkCommandPool _cmdPool;
+        // VkCommandPool _cmdPool;
 };

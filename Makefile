@@ -51,7 +51,7 @@ check:
 	@pkg-config --exists vulkan || ( \
 		echo "\033[1;33m[VULKAN] not installed\033[0m"; \
 		if [ "$(UNAME_S)" = "Darwin" ]; then \
-			echo "\033[1;32m👉 try: brew install vulkan-volk (macOS)\033[0m"; \
+			echo "\033[1;32m👉 try: brew install vulkan-volk vulkan-loader vulkan-headers vulkan-tools (macOS)\033[0m"; \
 		else \
 			echo "\033[1;32m👉 try: sudo apt install -y vulkan-tools libvulkan-dev \033[0m"; \
 		fi; \
