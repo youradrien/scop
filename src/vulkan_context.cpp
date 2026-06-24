@@ -26,6 +26,7 @@ void vulkan_context::init_vulkan()
 {
     create_instance();
     setup_debug_messenger();
+    pick_physical_device();
     // create_Surface();
     // pick_Physical_Device();
     // create_Logical_Device();
@@ -358,17 +359,45 @@ void vulkan_context::create_Surface()
 
 // PHYSICAL DEVICE (GPU)
 // -> chercher et sélectionner une carte graphique (physical device)
-void vulkan_context::pick_Physical_Device()
+static bool is_device_suitable(VkPhysicalDevice device)
 {
-    // uint32_t count = 0;
-    // vkEnumeratePhysicalDevices(this->_instance, &count, nullptr);
+    (void)(device);
+    VkPhysicalDeviceProperties _propreties;
+    vkGetPhysicalDeviceProperties(device, &_propreties);
 
-    // std::vector<VkPhysicalDevice> devices(count);
-    // vkEnumeratePhysicalDevices(this->_instance, &count, devices.data());
-    // if (count == 0) {
-    //     throw std::runtime_error("aucune carte graphique ne supporte Vulkan!");
-    // }
+    VkPhysicalDeviceFeatures _features;
+    vkGetPhysicalDeviceFeatures(device, &_features);
 
+    return /* _propreties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && */
+           // _features.geometryShader; 
+           true;
+}
+void vulkan_context::pick_physical_device()
+{
+    uint32_t devices_c = 0;
+    vkEnumeratePhysicalDevices(this->_instance, &devices_c, nullptr);
+    if (devices_c == 0) {
+        throw std::runtime_error("aucune carte graphique ne supporte Vulkan!");
+    }
+
+    std::vector<VkPhysicalDevice> devices(devices_c);
+    vkEnumeratePhysicalDevices(this->_instance, &devices_c, devices.data());
+
+    for (const auto& device : devices)
+    {
+        if (is_device_suitable(device))
+        {
+            this->_physical_device = device;
+            VkPhysicalDeviceProperties properties;
+            vkGetPhysicalDeviceProperties( device, &properties );
+            std::cout << "\033[32m[VK] GPU sélectionné:\033[0m " << properties.deviceName << std::endl;
+            break;
+        }
+    }
+
+    if (this->_physical_device == VK_NULL_HANDLE) {
+        throw std::runtime_error("aucun GPU ne peut exécuter ce programme!");
+    }
     // this->_physical_Device = devices[0]; // version simplifiée
 }
 
@@ -399,6 +428,7 @@ void vulkan_context::create_Logical_Device()
     // vkGetDeviceQueue(this->_device, 0, 0, &(this->_graphics_Queue));
     // vkGetDeviceQueue(this->_device, 0, 0, &(this->_present_Queue));
 }
+
 
 vulkan_context::~vulkan_context()
 {

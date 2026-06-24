@@ -50,16 +50,18 @@ class vulkan_context
         );
         void setup_debug_messenger();
 
+        // pick GPU
+        void pick_physical_device();
+
         void create_instance();
         void create_Surface();
-        void pick_Physical_Device();
         void create_Logical_Device();
-        void create_Swapchain();
-        void create_Image_Views();
-        void create_RenderPass();
-        void create_Pipeline();
-        void create_Framebuffers();
-        void create_CommandBuffers();
+        // void create_Swapchain();
+        // void create_Image_Views();
+        // void create_RenderPass();
+        // void create_Pipeline();
+        // void create_Framebuffers();
+        // void create_CommandBuffers();
 
     private:
         window& _window;
@@ -74,8 +76,8 @@ class vulkan_context
         VkDebugUtilsMessengerEXT _debug_messenger;
 
         // gpu physique device
-        // VkPhysicalDevice _physical_Device;
-        // // logical device
+        VkPhysicalDevice _physical_device = VK_NULL_HANDLE;
+        // logical device
         // VkDevice _device;
 
         // // queues?
