@@ -34,7 +34,22 @@ class vulkan_context
         void wait_idle();
 
     private:
+        // init
         void init_vulkan();
+        // extensions
+        std::vector<const char*> get_required_extensions() const;
+        // validations layers
+        bool check_validation_layer_support();
+        // debugger
+        void populate_debug_messenger_create_info( VkDebugUtilsMessengerCreateInfoEXT& create_info );
+        static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
+            VkDebugUtilsMessageSeverityFlagBitsEXT severity,
+            VkDebugUtilsMessageTypeFlagsEXT type,
+            const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
+            void* user_data
+        );
+        void setup_debug_messenger();
+
         void create_instance();
         void create_Surface();
         void pick_Physical_Device();
@@ -53,6 +68,10 @@ class vulkan_context
         VkInstance _instance;
         // surface SDL → Vulkan
         VkSurfaceKHR _surface;
+        // validation layers (sdk) 
+        static const std::vector<const char*> validation_layers;
+        std::vector<VkLayerProperties> _available_layers;
+        VkDebugUtilsMessengerEXT _debug_messenger;
 
         // gpu physique device
         // VkPhysicalDevice _physical_Device;

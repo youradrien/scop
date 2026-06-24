@@ -16,44 +16,16 @@ vulkan_context::vulkan_context(window &_window): _window(_window)
 {
     (void)(_window);
     //this->_window = (_window);
-
-    // get SDL2 extensions
-    /*
-    uint32_t count = 0;
-    SDL_Vulkan_GetInstanceExtensions(_window.get(), &count, nullptr);
-
-    std::vector<const char*> extensions(count);
-    SDL_Vulkan_GetInstanceExtensions(_window.get(), &count, extensions.data());
-
-    // create VKinstance
-    VkInstanceCreateInfo info{};
-    info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    info.enabledExtensionCount = count;
-    info.ppEnabledExtensionNames = extensions.data();
-
-    vkCreateInstance(&info, nullptr, &instance);
-
-    // surface SDL → Vulkan
-    VkSurfaceKHR surface;
-    if (!SDL_Vulkan_CreateSurface(_window.get(), instance, &surface))
-    {
-        throw std::runtime_error("Failed to create Vulkan surface");
-    }
-    */
-
     init_vulkan();
 }
-vulkan_context::~vulkan_context()
-{
-    if(this->_instance){
-        vkDestroyInstance(this->_instance, nullptr);
-    }
-}
+
+
 
 
 void vulkan_context::init_vulkan()
 {
     create_instance();
+    setup_debug_messenger();
     // create_Surface();
     // pick_Physical_Device();
     // create_Logical_Device();
@@ -65,100 +37,216 @@ void vulkan_context::init_vulkan()
     // create_CommandBuffers();
 }
 
-// INSTANCE (SDL2 EXTENSIONS mandatory)
-void vulkan_context::create_instance()
-{
 
-    // get SDL2 extensions
-    uint32_t extensions_count = 0;
+
+// validations layers
+const std::vector<const char*> vulkan_context::validation_layers = {
+    "VK_LAYER_KHRONOS_validation"
+};
+bool vulkan_context::check_validation_layer_support()
+{
+    uint32_t layer_count = 0;
+    vkEnumerateInstanceLayerProperties(
+        &layer_count,
+        nullptr
+    );
+    _available_layers.resize(layer_count);
+
+    vkEnumerateInstanceLayerProperties(
+        &layer_count,
+        _available_layers.data()
+    );
+
+    for (const char* required_layer : validation_layers)
+    {
+        bool found = false;
+        for (const auto& available_layer : _available_layers)
+        {
+            if (strcmp(
+                    required_layer,
+                    available_layer.layerName
+                ) == 0)
+            {
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+            return false;
+    }
+    std::cout << "\033[36m(VK) Available validation-layers:\n";
+    for (const auto& layer : _available_layers)
+    {
+        std::cout
+            << "\t"
+            << layer.layerName
+            << '\n';
+    }
+    std::cout << "\033[0m";
+    return true;
+}
+
+
+
+
+
+// fetch required extensions
+std::vector<const char*> vulkan_context::get_required_extensions() const
+{
+    uint32_t c = 0;
+
     if (!SDL_Vulkan_GetInstanceExtensions(
-        _window.get(),
-        &extensions_count,
-        nullptr)) // check 1st
+            _window.get(),
+            &c,
+            nullptr))
     {
         std::cout << "SDL2 extensions fur vulkan not found" << std::endl;
         throw std::runtime_error(SDL_GetError());
     }
-    SDL_Vulkan_GetInstanceExtensions(
-        _window.get(), &extensions_count, nullptr
-    );
-    std::vector<const char*> extensions(extensions_count);
-    SDL_Vulkan_GetInstanceExtensions(
-        _window.get(), &extensions_count, extensions.data()
-    );
+    std::vector<const char*> extensions(c);
+    if (!SDL_Vulkan_GetInstanceExtensions(
+            _window.get(),
+            &c,
+            extensions.data()))
+    {
+        throw std::runtime_error(SDL_GetError());
+    }
     std::cout << "\033[33m[SDL2] extensions requises:\n";
-    for (uint32_t i = 0; i < extensions_count; ++i)
+    for (uint32_t i = 0; i < c; ++i)
     {
         std::cout << '\t' << extensions[i] << '\n';
     }
     std::cout << "\033[0m" << std::endl;
-    extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-    extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
 
-
-
-    // VK aapplication info
-    VkApplicationInfo app_info{};
-    app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    app_info.pApplicationName = "scop";
-    app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    app_info.pEngineName = "No Engine";
-    app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    app_info.apiVersion = VK_API_VERSION_1_0;
-
-
-
-    // VK validations layers
-    const uint32_t WIDTH = 800,
-                   HEIGHT = 600;
-    const std::vector<const char*> validation_layers = {
-        "VK_LAYER_KHRONOS_validation"
-    };
     #ifdef NDEBUG
         constexpr bool enable_validation_layers = false;
     #else
         constexpr bool enable_validation_layers = true;
     #endif
-    uint32_t C;
-    vkEnumerateInstanceLayerProperties(&C, nullptr);
-    std::vector<VkLayerProperties> layers(C);
-    vkEnumerateInstanceLayerProperties(&C, layers.data());
-    uint32_t ext_found = 0;
-    bool validations_layers_supported = false;
-    for (const char* name : validation_layers)
-    {
-        for (const auto& layer : layers)
+
+        if (enable_validation_layers)
         {
-            if (strcmp(name, layer.layerName) == 0)
-                ext_found++;
+            extensions.push_back(
+                VK_EXT_DEBUG_UTILS_EXTENSION_NAME
+            );
         }
-    }
-    if(ext_found == validation_layers.size())
-        validations_layers_supported = (true);
-    if (enable_validation_layers && !validations_layers_supported) {
-        throw std::runtime_error("les validations layers sont activées mais ne sont pas disponibles!");
-    }else{
-        std::cout << "\033[36m(VK) SDK validations layers disponibles: " << std::endl;
-        for (const auto& layer : layers)
-            std::cout << "\t layer: "<<layer.layerName << " supported." << std::endl;
-        std::cout << "\033[0m" << std::endl;
-    }
+    #ifdef __APPLE__
+        extensions.push_back(
+            VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME
+        );
+
+        extensions.push_back(
+            VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME
+        );
+    #endif
+        return extensions;
+}
 
 
-    // VK instance
+
+
+
+
+/*
+le paramètre pCallbackData est une structure du type VkDebugUtilsMessengerCallbackDataEXT contenant les détails du message.
+ses membres les plus importants sont :
+    pMessage: Le message sous la forme d'une chaîne de type C terminée par le caractère nul \0
+    pObjects: Un tableau d'objets Vulkan liés au message
+    objectCount: Le nombre d'objets dans le tableau précédent
+*/
+VKAPI_ATTR VkBool32 VKAPI_CALL vulkan_context::debug_callback(
+        VkDebugUtilsMessageSeverityFlagBitsEXT severity,
+        VkDebugUtilsMessageTypeFlagsEXT type,
+        const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
+        void* user_data
+){
+    (void)type;
+    (void)user_data;
+    if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+    {
+        std::cerr << "\033[31m[VK ERROR]\033[0m " << callback_data->pMessage << std::endl;
+    }
+    else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT){
+        std::cerr << "\033[33m[VK WARNING]\033[0m " << callback_data->pMessage << std::endl;
+    }
+    else{
+        std::cout << "\033[36m[VK INFO]\033[0m " << callback_data->pMessage<< std::endl;
+    }
+    return VK_FALSE;
+}
+
+
+void vulkan_context::populate_debug_messenger_create_info(
+    VkDebugUtilsMessengerCreateInfoEXT& info)
+{
+    info = {};
+
+    info.sType =
+        VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+
+    info.messageSeverity =
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+
+    info.messageType =
+        VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+
+    info.pfnUserCallback = debug_callback;
+
+    info.pUserData = nullptr;
+}
+
+
+// INSTANCE (SDL2 EXTENSIONS mandatory)
+void vulkan_context::create_instance()
+{
+    // [VK] extensions
+    std::vector<const char*> extensions = this->get_required_extensions();
+
+    // [VK] aapplication info
+    VkApplicationInfo app_info{};
+    app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    app_info.pApplicationName = "scop";
+    app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+    app_info.pEngineName = "No-Engine";
+    app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+    app_info.apiVersion = VK_API_VERSION_1_0;
+
+    // [VK] validations layers
+    #ifdef NDEBUG
+        constexpr bool enable_validation_layers = false;
+    #else
+        constexpr bool enable_validation_layers = true;
+    #endif
+
+    if (enable_validation_layers &&
+        !check_validation_layer_support()
+    ){
+        throw std::runtime_error(
+            "Validation layers requested but unavailable"
+        );
+    }
+
+    // [VK] instance (create_info)
     VkInstanceCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     info.pApplicationInfo = &app_info;
     info.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     info.ppEnabledExtensionNames = extensions.data();
     info.enabledLayerCount = 0;
+    VkDebugUtilsMessengerCreateInfoEXT debug_info{};
     if(enable_validation_layers)
     {
         info.enabledLayerCount = static_cast<uint32_t>(validation_layers.size());
         info.ppEnabledLayerNames = validation_layers.data();
+        populate_debug_messenger_create_info(debug_info);
+        info.pNext = &debug_info;
     }
     info.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-    // create instance
+    // [VK] instance
     VkResult instance_res = vkCreateInstance(&info, nullptr, &(this->_instance));
     if (instance_res != VK_SUCCESS)
     {
@@ -177,23 +265,82 @@ void vulkan_context::create_instance()
     }
     
 
-    // VK extensions support
+    // [VK] extensions support
     uint32_t c = 0;
-    VkResult extension_res = vkEnumerateInstanceExtensionProperties(
-        nullptr, &c, nullptr
-    );
-    if ((extension_res) != VK_SUCCESS)
+    if ((vkEnumerateInstanceExtensionProperties(nullptr, &c, nullptr))
+        != VK_SUCCESS)
+    {
         throw std::runtime_error("failed to enumerate extensions");
+    }
     std::vector<VkExtensionProperties> VK_extensions(c);
-    vkEnumerateInstanceExtensionProperties(
-        nullptr, &c, VK_extensions.data()
-    );
-    std::cout << "\033[32m(VK) extensions disponibles :\n";
-    for (const auto& extension : VK_extensions) {
+    vkEnumerateInstanceExtensionProperties( nullptr, &c, VK_extensions.data() );
+    std::cout << "\033[32m(VK) extensions disponibles/supported :\n";
+    for (const auto& extension : VK_extensions)
+    {
         std::cout << '\t' << extension.extensionName << '\n';
     }
     std::cout << "\033[0m" << std::endl;
 }
+
+
+
+static VkResult CreateDebugUtilsMessengerEXT(
+    VkInstance instance,
+    const VkDebugUtilsMessengerCreateInfoEXT* create_info,
+    const VkAllocationCallbacks* allocator,
+    VkDebugUtilsMessengerEXT* messenger)
+{
+    auto func = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
+            vkGetInstanceProcAddr( instance, "vkCreateDebugUtilsMessengerEXT")
+        );
+
+    if (func != nullptr)
+        return func(
+            instance,
+            create_info,
+            allocator,
+            messenger);
+    return VK_ERROR_EXTENSION_NOT_PRESENT;
+}
+static void DestroyDebugUtilsMessengerEXT(
+    VkInstance instance,
+    VkDebugUtilsMessengerEXT messenger,
+    const VkAllocationCallbacks* allocator)
+{
+    auto func = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
+            vkGetInstanceProcAddr(instance,"vkDestroyDebugUtilsMessengerEXT")
+        );
+
+    if (func)
+        func(instance, messenger, allocator);
+}
+
+// make debug messenger used by vulkan -> that uses validation layers
+void vulkan_context::setup_debug_messenger()
+{
+#ifdef NDEBUG
+    return;
+#endif
+    VkDebugUtilsMessengerCreateInfoEXT info;
+    populate_debug_messenger_create_info(
+        info
+    );
+    if (CreateDebugUtilsMessengerEXT(
+            _instance,
+            &info,
+            nullptr,
+            &_debug_messenger)
+        != VK_SUCCESS)
+    {
+        throw std::runtime_error(
+            "le messager n'a pas pu être créé!"
+        );
+    }
+    std::cout << "\033[32m[VK] Debug Messenger Ready\033[0m" << std::endl;
+}
+
+
+
 
 
 
@@ -203,6 +350,9 @@ void vulkan_context::create_Surface()
     if (!SDL_Vulkan_CreateSurface(_window.get(), this->_instance, &_surface))
         throw std::runtime_error("Failed to create surface");
 }
+
+
+
 
 
 
@@ -248,4 +398,20 @@ void vulkan_context::create_Logical_Device()
 
     // vkGetDeviceQueue(this->_device, 0, 0, &(this->_graphics_Queue));
     // vkGetDeviceQueue(this->_device, 0, 0, &(this->_present_Queue));
+}
+
+vulkan_context::~vulkan_context()
+{
+    if(this->_instance)
+    {
+        #ifndef NDEBUG
+            DestroyDebugUtilsMessengerEXT(
+                _instance,
+                _debug_messenger,
+                nullptr
+            );
+        #endif
+        vkDestroyInstance(this->_instance, nullptr);
+  
+    }
 }
