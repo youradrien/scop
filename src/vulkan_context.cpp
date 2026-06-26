@@ -27,15 +27,7 @@ void vulkan_context::init_vulkan()
     create_instance();
     setup_debug_messenger();
     pick_physical_device();
-    // create_Surface();
-    // pick_Physical_Device();
-    // create_Logical_Device();
-    // create_Swapchain();
-    // create_Image_Views();
-    // create_RenderPass();
-    // create_Pipeline();
-    // create_Framebuffers();
-    // create_CommandBuffers();
+    create_logical_device();
 }
 
 
@@ -445,24 +437,55 @@ queue_family_indices vulkan_context::find_queue_families(VkPhysicalDevice device
 // dans des structures. La première de ces structures s'appelle VkDeviceQueueCreateInfo. 
 // Elle indique le nombre de queues que nous désirons pour chaque queue family.
 //  Pour le moment nous n'avons besoin que d'une queue originaire d'une unique queue family : la première avec un support pour les graphismes.
-void vulkan_context::create_Logical_Device()
+const std::vector<const char*> vulkan_context::device_extensions = {
+    VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME
+};
+void vulkan_context::create_logical_device()
 {
-    // float priority = 1.0f;
-
-    // VkDeviceQueueCreateInfo queue_info{};
-    // queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    // queue_info.queueCount = 1;
-    // queue_info.pQueuePriorities = &priority;
-
-    // VkDeviceCreateInfo info{};
-    // info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    // info.pQueueCreateInfos = &(queue_info);
-    // info.queueCreateInfoCount = 1;
-
     // vkCreateDevice(this->_physicalDevice, &info, nullptr, &(this->_device));
 
     // vkGetDeviceQueue(this->_device, 0, 0, &(this->_graphics_Queue));
     // vkGetDeviceQueue(this->_device, 0, 0, &(this->_present_Queue));
+    queue_family_indices indices = find_queue_families(this->_physical_device);
+
+    VkDeviceQueueCreateInfo queue_create_info{};
+    queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queue_create_info.queueFamilyIndex = indices.graphics_family;
+    queue_create_info.queueCount = 1;
+
+    float queue_priority = 1.0f;
+    queue_create_info.pQueuePriorities = &queue_priority;
+
+    VkPhysicalDeviceFeatures device_features{};
+
+    VkDeviceCreateInfo create_info{};
+    create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    create_info.pQueueCreateInfos = &(queue_create_info);
+    create_info.queueCreateInfoCount = 1;
+    create_info.pEnabledFeatures = &device_features;
+    create_info.enabledExtensionCount = static_cast<uint32_t>(device_extensions.size());
+    create_info.ppEnabledExtensionNames = device_extensions.data();
+    create_info.enabledLayerCount = 0;
+    create_info.ppEnabledLayerNames = nullptr;
+
+    #ifdef NDEBUG
+        constexpr bool enable_validation_layers = false;
+    #else
+        constexpr bool enable_validation_layers = true;
+    #endif
+    if (enable_validation_layers)
+    {
+        // create_info.enabledLayerCount = static_cast<uint32_t>(validation_layers.size());
+        // create_info.ppEnabledLayerNames = validation_layers.data();
+    }
+
+    //instanciation du logical device
+    if (vkCreateDevice(this->_physical_device, &create_info, nullptr, &(this->_device)) != VK_SUCCESS)
+    {
+        throw std::runtime_error("échec lors de la création d'un logical device!");
+    }
+
+    vkGetDeviceQueue(this->_device, indices.graphics_family, 0, &_graphics_queue);
 }
 
 
@@ -470,14 +493,27 @@ vulkan_context::~vulkan_context()
 {
     if(this->_instance)
     {
+        if (this->_device != VK_NULL_HANDLE)
+        {
+            vkDestroyDevice(_device, nullptr);
+            _device = VK_NULL_HANDLE;
+        }
+
         #ifndef NDEBUG
-            DestroyDebugUtilsMessengerEXT(
-                _instance,
-                _debug_messenger,
-                nullptr
-            );
+            if (this->_instance && _debug_messenger)
+            {
+                DestroyDebugUtilsMessengerEXT(
+                    _instance,
+                    _debug_messenger,
+                    nullptr
+                );
+            }
         #endif
-        vkDestroyInstance(this->_instance, nullptr);
-  
+
+        if (this->_instance != VK_NULL_HANDLE)
+        {
+            vkDestroyInstance(_instance, nullptr);
+            _instance = VK_NULL_HANDLE;
+        }  
     }
 }

@@ -55,7 +55,7 @@ class vulkan_context
         void init_vulkan();
         // extensions
         std::vector<const char*> get_required_extensions() const;
-        // validations layers
+        // validation layers (sdk) 
         bool check_validation_layer_support();
         // debugger
         void populate_debug_messenger_create_info( VkDebugUtilsMessengerCreateInfoEXT& create_info );
@@ -67,16 +67,19 @@ class vulkan_context
         );
         void setup_debug_messenger();
 
-        // pick GPU
+        // gpu physique device
         void pick_physical_device();
         bool is_device_suitable(VkPhysicalDevice device);
 
         // queue families
         queue_family_indices find_queue_families(VkPhysicalDevice device);
 
+        // logical device
+        void create_logical_device();
+
+
         void create_instance();
         void create_Surface();
-        void create_Logical_Device();
 
     private:
         window& _window;
@@ -88,16 +91,19 @@ class vulkan_context
         // validation layers (sdk) 
         static const std::vector<const char*> validation_layers;
         std::vector<VkLayerProperties> _available_layers;
+        // debugger
         VkDebugUtilsMessengerEXT _debug_messenger;
 
         // gpu physique device
-        VkPhysicalDevice _physical_device = VK_NULL_HANDLE;
+        VkPhysicalDevice _physical_device = VK_NULL_HANDLE
+        ;
         // logical device
-        // VkDevice _device;
+        static const std::vector<const char*> device_extensions;
+        VkDevice _device;
 
         // // queues?
-        // VkQueue _graphics_Queue;
-        // VkQueue _present_Queue;
+        VkQueue _graphics_queue;
+        VkQueue _present_queue;
 
         // VkSwapchainKHR _swapchain;
         // std::vector<VkImage> _images;
