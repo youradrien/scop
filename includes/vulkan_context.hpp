@@ -23,6 +23,23 @@
 
 #include <vulkan/vulkan.h>
 
+struct queue_family_indices
+{
+    uint32_t graphics_family;
+    uint32_t present_family;
+
+    queue_family_indices()
+        : graphics_family(UINT32_MAX),
+          present_family(UINT32_MAX)
+    {
+    }
+
+    bool is_complete() const
+    {
+        return graphics_family != UINT32_MAX ||
+               present_family != UINT32_MAX;
+    }
+};
 class vulkan_context
 {
     public:
@@ -52,16 +69,14 @@ class vulkan_context
 
         // pick GPU
         void pick_physical_device();
+        bool is_device_suitable(VkPhysicalDevice device);
+
+        // queue families
+        queue_family_indices find_queue_families(VkPhysicalDevice device);
 
         void create_instance();
         void create_Surface();
         void create_Logical_Device();
-        // void create_Swapchain();
-        // void create_Image_Views();
-        // void create_RenderPass();
-        // void create_Pipeline();
-        // void create_Framebuffers();
-        // void create_CommandBuffers();
 
     private:
         window& _window;

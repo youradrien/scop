@@ -359,9 +359,11 @@ void vulkan_context::create_Surface()
 
 // PHYSICAL DEVICE (GPU)
 // -> chercher et sélectionner une carte graphique (physical device)
-static bool is_device_suitable(VkPhysicalDevice device)
+bool vulkan_context::is_device_suitable(VkPhysicalDevice device)
 {
     (void)(device);
+    queue_family_indices indices = this->find_queue_families(device);
+
     VkPhysicalDeviceProperties _propreties;
     vkGetPhysicalDeviceProperties(device, &_propreties);
 
@@ -370,7 +372,7 @@ static bool is_device_suitable(VkPhysicalDevice device)
 
     return /* _propreties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && */
            // _features.geometryShader; 
-           true;
+           true && indices.is_complete();
 }
 void vulkan_context::pick_physical_device()
 {
@@ -390,6 +392,11 @@ void vulkan_context::pick_physical_device()
             this->_physical_device = device;
             VkPhysicalDeviceProperties properties;
             vkGetPhysicalDeviceProperties( device, &properties );
+            std::cout << "\033[32m[VK] API Vulkan:\033[0m "
+                << VK_VERSION_MAJOR(properties.apiVersion) << "."
+                << VK_VERSION_MINOR(properties.apiVersion) << "."
+                << VK_VERSION_PATCH(properties.apiVersion)
+            << std::endl;
             std::cout << "\033[32m[VK] GPU sélectionné:\033[0m " << properties.deviceName << std::endl;
             break;
         }
@@ -399,6 +406,35 @@ void vulkan_context::pick_physical_device()
         throw std::runtime_error("aucun GPU ne peut exécuter ce programme!");
     }
     // this->_physical_Device = devices[0]; // version simplifiée
+}
+
+
+
+//queue families
+queue_family_indices vulkan_context::find_queue_families(VkPhysicalDevice device)
+{
+    queue_family_indices indices;
+    uint32_t queue_family_count = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, nullptr);
+
+    std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families.data());
+
+    for (uint32_t i = 0; i < queue_families.size(); ++i)
+    {
+        // graphics queue
+        if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+        {
+            indices.graphics_family = i;
+        }
+
+        // Plus tard :
+        // if (presentSupport)
+        //     indices.present_family = i;
+        if (indices.is_complete())
+            break;
+    }
+    return indices;
 }
 
 
