@@ -9,14 +9,15 @@ Introduction to modern Vulkan API, the goal is to display a simple .obj file wit
 
 ## how to run
 To build on OSX, clone the repo and `make` 
+Prerequisites: `SDL2` and `Vulkan` 
 
--- prerequisites: SDL2 and Vulkan
+SDL2
 ```bash
-(`brew install SDL2`)
+brew install SDL2
 ``` 
 and Vulkan
 ```bash
-(`brew install vulkan-volk vulkan-loader vulkan-headers vulkan-tools (macOS)`)
+brew install vulkan-volk vulkan-loader vulkan-headers vulkan-tools (macOS)
 ```
 
 Then, use it with an obj file and a texture, such as `./scop obj/teapot.obj textures/nyan.bmp`
