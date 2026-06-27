@@ -1,12 +1,19 @@
 # ft_scop
-42 project "Scop" (OpenGL)
+42 project "Scop" (Vulkan)
 
 ### A graphics assignment, for the school 42
 In C99, with access to the whole stdlib and the math lib.
 
-Introduction to modern OpenGL, the goal is to display a simple .obj file with textures and custom shaders.
+Introduction to modern Vulkan API, the goal is to display a simple .obj file with textures and custom shaders.
 
-To build on OSX, clone the repo and `make` -- prerequisites: GLFW (`brew install glfw`) and GLEW (`brew install glew`)
+To build on OSX, clone the repo and `make` -- prerequisites: SDL2 
+```bash
+(`brew install SDL2`)
+``` 
+and Vulkan
+```bash
+(`brew install vulkan-volk vulkan-loader vulkan-headers vulkan-tools (macOS)`)
+```
 
 Then, use it with an obj file and a texture, such as `./scop obj/teapot.obj textures/nyan.bmp`
 
