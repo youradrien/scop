@@ -4,8 +4,9 @@
 ## description
 ### A graphics assignment, for the school 42
 In C++11, with access to the whole <stdlib> and the math lib.
+With SDL2 as window manager, and Vulkan for the graphics API
 
-Introduction to modern Vulkan API, the goal is to display a simple .obj file with textures and custom shaders.
+this project is an introduction to modern Vulkan API, the goal is to display a simple .obj file with textures and custom shaders.
 
 ## how to run
 To build on OSX, clone the repo and `make` 
