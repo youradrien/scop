@@ -356,15 +356,16 @@ void vulkan_context::create_surface()
         throw std::runtime_error(SDL_GetError());
     }
 
-    std::cout << "\033[32m"
-              << "[VK] Surface créée."
-              << "\033[0m\n";
+    std::cout << "\033[32m" << "[VK] Surface créée." << "\033[0m\n";
 }
 
 
 
 
 // queue families
+// const std::vector<const char*> device_extensions = {
+//     VK_KHR_SWAPCHAIN_EXTENSION_NAME
+// };
 queue_family_indices vulkan_context::find_queue_families(VkPhysicalDevice device)
 {
     queue_family_indices indices;
@@ -376,8 +377,6 @@ queue_family_indices vulkan_context::find_queue_families(VkPhysicalDevice device
 
     for (uint32_t i = 0; i < queue_families.size(); ++i)
     {
-        // VkBool32 present_support = false;
-        // vkGetPhysicalDeviceSurfaceSupportKHR(device, i, this->_surface, &present_support);
         // graphics queue
         if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
         {
@@ -400,23 +399,43 @@ queue_family_indices vulkan_context::find_queue_families(VkPhysicalDevice device
     }
     return indices;
 }
-// PHYSICAL DEVICE (GPU)
-// -> chercher et sélectionner une carte graphique (physical device)
+
+bool vulkan_context::check_device_extensions_support(VkPhysicalDevice device)
+{
+    uint32_t c;
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &c, nullptr);
+
+    std::vector<VkExtensionProperties> available_extensions(c);
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &c, available_extensions.data());
+
+    std::set<std::string> required_extensions(device_extensions.begin(), device_extensions.end());
+
+    if (!required_extensions.empty())
+    {
+        std::cout << "[VK] needed device extensions:\n";
+        for (const auto& ext : required_extensions)
+            std::cout << "\t" << ext << "\n";
+    }
+    for (const auto& extension : available_extensions) {
+        required_extensions.erase(extension.extensionName);
+    }
+    if(required_extensions.empty())
+    {
+        std::cout << "\033[32m[VK] every device extensions supported.\033[0m\n"; 
+    }
+    return required_extensions.empty();
+}
 bool vulkan_context::is_device_suitable(VkPhysicalDevice device)
 {
     (void)(device);
     queue_family_indices indices = this->find_queue_families(device);
+    bool extenstions_supported = check_device_extensions_support(device);
 
-    VkPhysicalDeviceProperties _propreties;
-    vkGetPhysicalDeviceProperties(device, &_propreties);
 
-    VkPhysicalDeviceFeatures _features;
-    vkGetPhysicalDeviceFeatures(device, &_features);
-
-    return /* _propreties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && */
-           // _features.geometryShader; 
-           true && indices.is_complete();
+    return (extenstions_supported) && indices.is_complete();
 }
+// PHYSICAL DEVICE (GPU)
+// -> chercher et sélectionner une carte graphique (physical device)
 void vulkan_context::pick_physical_device()
 {
     uint32_t devices_c = 0;
@@ -460,23 +479,13 @@ void vulkan_context::pick_physical_device()
 // dans des structures. La première de ces structures s'appelle VkDeviceQueueCreateInfo. 
 // Elle indique le nombre de queues que nous désirons pour chaque queue family.
 //  Pour le moment nous n'avons besoin que d'une queue originaire d'une unique queue family : la première avec un support pour les graphismes.
+// DEVICE EXTENSIONS <---------------
 const std::vector<const char*> vulkan_context::device_extensions = {
-    VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME
+    VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME,
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 void vulkan_context::create_logical_device()
 {
-    /*  
-    queue_family_indices indices = find_queue_families(this->_physical_device);
-
-    // create info of "graphique" queue
-    VkDeviceQueueCreateInfo queue_create_info{};
-    queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queue_create_info.queueFamilyIndex = indices.graphics_family;
-    queue_create_info.queueCount = 1;
-
-    float queue_priority = 1.0f;
-    queue_create_info.pQueuePriorities = &queue_priority;
-    */
     queue_family_indices indices = find_queue_families(this->_physical_device);
 
     std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
@@ -500,8 +509,6 @@ void vulkan_context::create_logical_device()
 
     VkDeviceCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    // create_info.pQueueCreateInfos = &(queue_create_info);
-    // create_info.queueCreateInfoCount = 1;
     create_info.queueCreateInfoCount = static_cast<uint32_t>(queue_create_infos.size());
     create_info.pQueueCreateInfos = queue_create_infos.data();
     create_info.pEnabledFeatures = &device_features;

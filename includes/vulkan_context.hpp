@@ -74,6 +74,7 @@ class vulkan_context
 
         // gpu physique device
         void pick_physical_device();
+        bool check_device_extensions_support(VkPhysicalDevice device);
         bool is_device_suitable(VkPhysicalDevice device);
 
         // queue families
