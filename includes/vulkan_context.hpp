@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 #include <mesh.hpp>
+#include <set>
 #include <cstring>
 #include "window.hpp"
 
@@ -36,7 +37,7 @@ struct queue_family_indices
 
     bool is_complete() const
     {
-        return graphics_family != UINT32_MAX ||
+        return graphics_family != UINT32_MAX &&
                present_family != UINT32_MAX;
     }
 };
@@ -53,6 +54,10 @@ class vulkan_context
     private:
         // init
         void init_vulkan();
+        // vulkan instance
+        void create_instance();
+        // surface
+        void create_surface();
         // extensions
         std::vector<const char*> get_required_extensions() const;
         // validation layers (sdk) 
@@ -78,8 +83,6 @@ class vulkan_context
         void create_logical_device();
 
 
-        void create_instance();
-        void create_Surface();
 
     private:
         window& _window;

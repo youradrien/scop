@@ -12,7 +12,14 @@
 
 #include "vulkan_context.hpp"
 
-vulkan_context::vulkan_context(window &_window): _window(_window)
+vulkan_context::vulkan_context(window &_window): _window(_window),
+    _instance(VK_NULL_HANDLE),
+    _surface(VK_NULL_HANDLE),
+    _debug_messenger(VK_NULL_HANDLE),
+    _physical_device(VK_NULL_HANDLE),
+    _device(VK_NULL_HANDLE),
+    _graphics_queue(VK_NULL_HANDLE),
+    _present_queue(VK_NULL_HANDLE)
 {
     (void)(_window);
     //this->_window = (_window);
@@ -21,15 +28,16 @@ vulkan_context::vulkan_context(window &_window): _window(_window)
 
 
 
-
 void vulkan_context::init_vulkan()
 {
     create_instance();
-    setup_debug_messenger();
+    #ifndef NDEBUG
+        setup_debug_messenger();
+    #endif
+    create_surface();
     pick_physical_device();
     create_logical_device();
 }
-
 
 
 // validations layers
@@ -338,17 +346,60 @@ void vulkan_context::setup_debug_messenger()
 
 
 // surface SDL2 -> Vulkan
-void vulkan_context::create_Surface()
+void vulkan_context::create_surface()
 {
-    if (!SDL_Vulkan_CreateSurface(_window.get(), this->_instance, &_surface))
-        throw std::runtime_error("Failed to create surface");
+    if (!SDL_Vulkan_CreateSurface(
+            _window.get(),
+            _instance,
+            &(this->_surface) ))
+    {
+        throw std::runtime_error(SDL_GetError());
+    }
+
+    std::cout << "\033[32m"
+              << "[VK] Surface créée."
+              << "\033[0m\n";
 }
 
 
 
 
+// queue families
+queue_family_indices vulkan_context::find_queue_families(VkPhysicalDevice device)
+{
+    queue_family_indices indices;
+    uint32_t queue_family_count = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, nullptr);
 
+    std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families.data());
 
+    for (uint32_t i = 0; i < queue_families.size(); ++i)
+    {
+        // VkBool32 present_support = false;
+        // vkGetPhysicalDeviceSurfaceSupportKHR(device, i, this->_surface, &present_support);
+        // graphics queue
+        if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+        {
+            indices.graphics_family = i;    
+        }
+        // PRESENT (SURFACE)
+        VkBool32 present_support = VK_FALSE;
+        vkGetPhysicalDeviceSurfaceSupportKHR(
+            device,
+            i,
+            _surface,
+            &present_support
+        );
+        if (present_support)
+        {
+            indices.present_family = i;
+        }
+        if (indices.is_complete())
+            break;
+    }
+    return indices;
+}
 // PHYSICAL DEVICE (GPU)
 // -> chercher et sélectionner une carte graphique (physical device)
 bool vulkan_context::is_device_suitable(VkPhysicalDevice device)
@@ -402,34 +453,6 @@ void vulkan_context::pick_physical_device()
 
 
 
-//queue families
-queue_family_indices vulkan_context::find_queue_families(VkPhysicalDevice device)
-{
-    queue_family_indices indices;
-    uint32_t queue_family_count = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, nullptr);
-
-    std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families.data());
-
-    for (uint32_t i = 0; i < queue_families.size(); ++i)
-    {
-        // graphics queue
-        if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
-        {
-            indices.graphics_family = i;
-        }
-
-        // Plus tard :
-        // if (presentSupport)
-        //     indices.present_family = i;
-        if (indices.is_complete())
-            break;
-    }
-    return indices;
-}
-
-
 
 // LOGICAL DEVICE
 // -> générer un logical device pour servir d'interface
@@ -442,12 +465,10 @@ const std::vector<const char*> vulkan_context::device_extensions = {
 };
 void vulkan_context::create_logical_device()
 {
-    // vkCreateDevice(this->_physicalDevice, &info, nullptr, &(this->_device));
-
-    // vkGetDeviceQueue(this->_device, 0, 0, &(this->_graphics_Queue));
-    // vkGetDeviceQueue(this->_device, 0, 0, &(this->_present_Queue));
+    /*  
     queue_family_indices indices = find_queue_families(this->_physical_device);
 
+    // create info of "graphique" queue
     VkDeviceQueueCreateInfo queue_create_info{};
     queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     queue_create_info.queueFamilyIndex = indices.graphics_family;
@@ -455,13 +476,34 @@ void vulkan_context::create_logical_device()
 
     float queue_priority = 1.0f;
     queue_create_info.pQueuePriorities = &queue_priority;
+    */
+    queue_family_indices indices = find_queue_families(this->_physical_device);
+
+    std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
+    std::set<uint32_t> unique_queue_families = {
+        indices.graphics_family, 
+        indices.present_family
+    };
+
+    float queue_priority = 1.0f;
+    for (uint32_t queue_family : unique_queue_families)
+    {
+        VkDeviceQueueCreateInfo queue_create_info{};
+        queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queue_create_info.queueFamilyIndex = (queue_family);
+        queue_create_info.queueCount = 1;
+        queue_create_info.pQueuePriorities = &queue_priority;
+        queue_create_infos.push_back(queue_create_info);
+    }
 
     VkPhysicalDeviceFeatures device_features{};
 
     VkDeviceCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    create_info.pQueueCreateInfos = &(queue_create_info);
-    create_info.queueCreateInfoCount = 1;
+    // create_info.pQueueCreateInfos = &(queue_create_info);
+    // create_info.queueCreateInfoCount = 1;
+    create_info.queueCreateInfoCount = static_cast<uint32_t>(queue_create_infos.size());
+    create_info.pQueueCreateInfos = queue_create_infos.data();
     create_info.pEnabledFeatures = &device_features;
     create_info.enabledExtensionCount = static_cast<uint32_t>(device_extensions.size());
     create_info.ppEnabledExtensionNames = device_extensions.data();
@@ -486,6 +528,7 @@ void vulkan_context::create_logical_device()
     }
 
     vkGetDeviceQueue(this->_device, indices.graphics_family, 0, &_graphics_queue);
+    vkGetDeviceQueue(this->_device, indices.present_family, 0, &_present_queue);
 }
 
 
@@ -498,7 +541,11 @@ vulkan_context::~vulkan_context()
             vkDestroyDevice(_device, nullptr);
             _device = VK_NULL_HANDLE;
         }
-
+        if (this->_surface != VK_NULL_HANDLE)
+        {
+            vkDestroySurfaceKHR(_instance, _surface, nullptr);
+            _surface = VK_NULL_HANDLE;
+        }
         #ifndef NDEBUG
             if (this->_instance && _debug_messenger)
             {
