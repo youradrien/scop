@@ -1,12 +1,16 @@
 # ft_scop
 42 project "Scop" (Vulkan)
 
+## description
 ### A graphics assignment, for the school 42
-In C99, with access to the whole stdlib and the math lib.
+In C++11, with access to the whole <stdlib> and the math lib.
 
 Introduction to modern Vulkan API, the goal is to display a simple .obj file with textures and custom shaders.
 
-To build on OSX, clone the repo and `make` -- prerequisites: SDL2 
+## how to run
+To build on OSX, clone the repo and `make` 
+
+-- prerequisites: SDL2 and Vulkan
 ```bash
 (`brew install SDL2`)
 ``` 
