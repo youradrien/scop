@@ -18,6 +18,9 @@
 #include <mesh.hpp>
 #include <set>
 #include <cstring>
+#include <cstdint> // uint32_t
+#include <limits> // std::numeric_limits
+#include <algorithm> // std::clamp
 #include "window.hpp"
 
 #define VK_ENABLE_BETA_EXTENSIONS
@@ -41,6 +44,14 @@ struct queue_family_indices
                present_family != UINT32_MAX;
     }
 };
+
+struct swapchain_support_details
+{
+    VkSurfaceCapabilitiesKHR capabilities;
+    std::vector<VkSurfaceFormatKHR> formats;
+    std::vector<VkPresentModeKHR> present_modes;
+};
+
 class vulkan_context
 {
     public:
@@ -59,7 +70,7 @@ class vulkan_context
         // surface
         void create_surface();
         // extensions
-        std::vector<const char*> get_required_extensions() const;
+        std::vector<const char*> get_instance_extensions() const;
         // validation layers (sdk) 
         bool check_validation_layer_support();
         // debugger
@@ -83,15 +94,21 @@ class vulkan_context
         // logical device
         void create_logical_device();
 
-
+        // swapchain
+        swapchain_support_details query_swapchain_support(VkPhysicalDevice device);
+        VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats);
+        VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR> &available_present_modes);
+        VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities);
+        void create_swapchain();
 
     private:
         window& _window;
 
         // vulkan instance
         VkInstance _instance;
-        // surface SDL → Vulkan
+        // surface SDL2 → Vulkan
         VkSurfaceKHR _surface;
+
         // validation layers (sdk) 
         static const std::vector<const char*> validation_layers;
         std::vector<VkLayerProperties> _available_layers;
@@ -109,8 +126,11 @@ class vulkan_context
         VkQueue _graphics_queue;
         VkQueue _present_queue;
 
-        // VkSwapchainKHR _swapchain;
-        // std::vector<VkImage> _images;
+        // swapchain
+        VkSwapchainKHR _swapchain;
+        std::vector<VkImage> _swapchain_images;
+        VkFormat _swapchain_image_format;
+        VkExtent2D _swapchain_extent;
         // std::vector<VkImageView> _imageViews;
 
         // VkRenderPass _renderPass;

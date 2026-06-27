@@ -37,6 +37,8 @@ void vulkan_context::init_vulkan()
     create_surface();
     pick_physical_device();
     create_logical_device();
+    create_swapchain();
+    // create image views
 }
 
 
@@ -92,7 +94,7 @@ bool vulkan_context::check_validation_layer_support()
 
 
 // fetch required extensions
-std::vector<const char*> vulkan_context::get_required_extensions() const
+std::vector<const char*> vulkan_context::get_instance_extensions() const
 {
     uint32_t c = 0;
 
@@ -205,7 +207,7 @@ void vulkan_context::populate_debug_messenger_create_info(
 void vulkan_context::create_instance()
 {
     // [VK] extensions
-    std::vector<const char*> extensions = this->get_required_extensions();
+    std::vector<const char*> extensions = this->get_instance_extensions();
 
     // [VK] aapplication info
     VkApplicationInfo app_info{};
@@ -400,6 +402,9 @@ queue_family_indices vulkan_context::find_queue_families(VkPhysicalDevice device
     return indices;
 }
 
+
+// verification portabilité macOs (VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME)
+// verification du support de la swap chain (VK_KHR_SWAPCHAIN_EXTENSION_NAME)
 bool vulkan_context::check_device_extensions_support(VkPhysicalDevice device)
 {
     uint32_t c;
@@ -412,7 +417,7 @@ bool vulkan_context::check_device_extensions_support(VkPhysicalDevice device)
 
     if (!required_extensions.empty())
     {
-        std::cout << "[VK] needed device extensions:\n";
+        std::cout << "[VK] physical device: needed device extensions:\n";
         for (const auto& ext : required_extensions)
             std::cout << "\t" << ext << "\n";
     }
@@ -421,7 +426,7 @@ bool vulkan_context::check_device_extensions_support(VkPhysicalDevice device)
     }
     if(required_extensions.empty())
     {
-        std::cout << "\033[32m[VK] every device extensions supported.\033[0m\n"; 
+        std::cout << "\033[32m[VK] physical device: every device-extensions supported.\033[0m\n"; 
     }
     return required_extensions.empty();
 }
@@ -431,8 +436,15 @@ bool vulkan_context::is_device_suitable(VkPhysicalDevice device)
     queue_family_indices indices = this->find_queue_families(device);
     bool extenstions_supported = check_device_extensions_support(device);
 
-
-    return (extenstions_supported) && indices.is_complete();
+    bool swapchain_adequate = false;
+    if (extenstions_supported) {
+        swapchain_support_details swapchain_support = query_swapchain_support(device);
+        swapchain_adequate = (
+            !swapchain_support.formats.empty() && !swapchain_support.present_modes.empty()
+        );
+        std::cout << "\033[32m[VK] physical device: swapchain adequate (support swapchain assuré).\033[0m\n";  
+    }
+    return indices.is_complete() &&  (extenstions_supported) && swapchain_adequate;
 }
 // PHYSICAL DEVICE (GPU)
 // -> chercher et sélectionner une carte graphique (physical device)
@@ -459,7 +471,7 @@ void vulkan_context::pick_physical_device()
                 << VK_VERSION_MINOR(properties.apiVersion) << "."
                 << VK_VERSION_PATCH(properties.apiVersion)
             << std::endl;
-            std::cout << "\033[32m[VK] GPU sélectionné:\033[0m " << properties.deviceName << std::endl;
+            std::cout << "\033[32m[VK] physical device: [GPU] sélectionné: \033[0m " << properties.deviceName << std::endl;
             break;
         }
     }
@@ -469,8 +481,6 @@ void vulkan_context::pick_physical_device()
     }
     // this->_physical_Device = devices[0]; // version simplifiée
 }
-
-
 
 
 // LOGICAL DEVICE
@@ -539,10 +549,191 @@ void vulkan_context::create_logical_device()
 }
 
 
+// SWAPCHAIN
+// Vulkan ne possède pas de concept comme le framebuffer par défaut, et nous devons donc créer une infrastructure
+// qui contiendra les buffers sur lesquels nous effectuerons les rendus avant de les présenter à l'écran. 
+// Cette infrastructure s'appelle swap chain sur Vulkan et doit être créée explicitement. 
+// La swap chain est essentiellement une file d'attente d'images attendant d'être affichées
+
+// swapchain adequate or not for a given logical device
+swapchain_support_details vulkan_context::query_swapchain_support(VkPhysicalDevice device)
+{
+    swapchain_support_details details;
+
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, this->_surface, &details.capabilities);
+
+    uint32_t format_count;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(device, this->_surface, &format_count, nullptr);
+
+    if (format_count != 0) {
+        details.formats.resize(format_count);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(device, this->_surface, &format_count, details.formats.data());
+    }
+
+    uint32_t present_mode_count;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(device, this->_surface, &present_mode_count, nullptr);
+
+    if (present_mode_count != 0) {
+        details.present_modes.resize(present_mode_count);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(
+            device, this->_surface, &present_mode_count, details.present_modes.data()
+        );
+    }
+    return details;
+}
+
+// choose swapchain best parameters
+// quelques fonctions qui détermineront les bons paramètres pour obtenir la swap chain 
+// la plus efficace possible. il y a 3 types de paramètres à déterminer :
+// - format de la surface (profondeur de la couleur)
+// - modes de présentation (conditions de "l'échange" des images avec l'écran)
+// - swap extent (résolution des images dans la swap chain)
+
+// best surface format possible -> (swapchain_support_details.formats)
+VkSurfaceFormatKHR vulkan_context::choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats)
+{
+    // chaque VkSurfaceFormatKHR contient les données format et colorSpace
+    // - [format] indique les canaux de couleur disponibles et types qui contiennent valeurs des gradients
+    //   (ex. VK_FORMAT_B8G8R8A8_SRGB signifie que nous stockons les canaux de couleur R, G, B et A)
+    // - [colorSpace] permet de vérifier que sRGB est supporté en utilisant
+    //   le champ de bits VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+    for (const auto& available_format : available_formats)
+    {
+        if (available_format.format == VK_FORMAT_B8G8R8A8_SRGB 
+            && available_format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+        ){
+            return available_format;
+        }
+    }
+    if(available_formats.size() > 0)
+        return (available_formats[0]);
+}
+// best presentmode possible -> 
+VkPresentModeKHR vulkan_context::choose_swap_present_mode(const std::vector<VkPresentModeKHR> &available_present_modes)
+{
+    /*
+    voir (mode de presentation): https://vulkan-tutorial.com/fr/Dessiner_un_triangle/Presentation/Swap_chain
+    VK_PRESENT_MODE_MAILBOX_KHR : ce mode est une autre variation du second mode (VK_PRESENT_MODE_FIFO_KHR). 
+        Au lieu de bloquer l'application quand le file d'attente est pleine, 
+        les images présentes dans la queue sont simplement remplacées par de nouvelles. 
+        Ce mode peut être utilisé pour implémenter le triple buffering, qui vous permet d'éliminer le tearing 
+        tout en réduisant le temps de latence entre le rendu et l'affichage qu'une file d'attente implique. 
+        -> ready buffer -> rendering buffer -> presenting buffer -> 
+    */
+    for (const auto& available_present_mode : available_present_modes) {
+        // selectionné triple buffering
+        if (available_present_mode == VK_PRESENT_MODE_MAILBOX_KHR) {
+            return available_present_mode;
+        }
+    }
+
+    return VK_PRESENT_MODE_FIFO_KHR;
+}
+
+// best swap extent
+VkExtent2D vulkan_context::choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities)
+{
+    // swap extent donne la résolution des images dans la swap chain et correspond 
+    // quasiment toujours à la résolution de la fenêtre que nous utilisons.
+    // VkSurfaceCapabilitiesKHR: étendue des résolutions disponibles.
+    if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
+    {
+        return capabilities.currentExtent;
+    } else {
+        int WIDTH, HEIGHT;
+        SDL_GetWindowSize(_window.get(), &WIDTH, &HEIGHT);
+
+        VkExtent2D actual_extent = {
+            static_cast<uint32_t>(WIDTH),
+            static_cast<uint32_t>(HEIGHT)
+        };
+
+        actual_extent.width = std::max(
+            capabilities.minImageExtent.width,
+            std::min(actual_extent.width, capabilities.maxImageExtent.width)
+        );
+
+        actual_extent.height = std::max(
+            capabilities.minImageExtent.height,
+            std::min(actual_extent.height, capabilities.maxImageExtent.height)
+        );
+        return (actual_extent);
+    }
+}
+
+
+
+void    vulkan_context::create_swapchain()
+{
+    swapchain_support_details swapchain_support = this->query_swapchain_support(this->_physical_device);
+
+    VkSurfaceFormatKHR surface_format = this->choose_swap_surface_format(swapchain_support.formats);
+    VkPresentModeKHR present_mode = this->choose_swap_present_mode(swapchain_support.present_modes);
+    VkExtent2D extent = this->choose_swap_extent(swapchain_support.capabilities);
+
+    uint32_t image_count = swapchain_support.capabilities.minImageCount + 1;
+    if (swapchain_support.capabilities.maxImageCount > 0
+        && image_count > swapchain_support.capabilities.maxImageCount)
+    {
+        image_count = swapchain_support.capabilities.maxImageCount;
+    }
+    VkSwapchainCreateInfoKHR swapchain_info{};
+    swapchain_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    swapchain_info.surface = this->_surface;
+    swapchain_info.minImageCount = (image_count);
+    swapchain_info.imageFormat = surface_format.format;
+    swapchain_info.imageColorSpace = surface_format.colorSpace;
+    swapchain_info.imageExtent = extent;
+    swapchain_info.imageArrayLayers = 1;
+    swapchain_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+    queue_family_indices indices = this->find_queue_families(this->_physical_device);
+    uint32_t queueFamilyIndices[] = {indices.graphics_family, indices.present_family};
+
+    // mode concurrent(VK_SHARING_MODE_CONCURRENT), 
+    // si la queue des graphismes n'est pas la même que la queue de présentation. 
+    // nous devrons alors dessiner avec la graphics queue puis fournir l'image à la presentation queue.
+    // -> swapchain -> 1 image utilisée par -> plusieurs queues concurrentes
+    if (indices.graphics_family != indices.present_family) {
+        swapchain_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        swapchain_info.queueFamilyIndexCount = 2;
+        swapchain_info.pQueueFamilyIndices = queueFamilyIndices;
+    } else {
+        swapchain_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        swapchain_info.queueFamilyIndexCount = 0; // optionnel
+        swapchain_info.pQueueFamilyIndices = nullptr; // optionnel
+    }
+    // transformation à appliquer aux images: pour linstant aucune
+    swapchain_info.preTransform = swapchain_support.capabilities.currentTransform;
+    swapchain_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    swapchain_info.presentMode = present_mode;
+    swapchain_info.clipped = VK_TRUE;
+    swapchain_info.oldSwapchain = VK_NULL_HANDLE;
+
+    // création de la SWAPCHAIN
+    if (vkCreateSwapchainKHR(this->_device, &swapchain_info, nullptr, &(this->_swapchain)) != VK_SUCCESS)
+    {
+        throw std::runtime_error("échec de la création de la swap chain!");
+    }
+
+    vkGetSwapchainImagesKHR(this->_device, this->_swapchain, &image_count, nullptr);
+    this->_swapchain_images.resize(image_count);
+    vkGetSwapchainImagesKHR(this->_device, this->_swapchain, &image_count, this->_swapchain_images.data());
+    this->_swapchain_image_format = surface_format.format;
+    this->_swapchain_extent = extent;
+}
+
+
+
+
 vulkan_context::~vulkan_context()
 {
     if(this->_instance)
     {
+        if(this->_swapchain != VK_NULL_HANDLE)
+        {
+            vkDestroySwapchainKHR(_device, this->_swapchain, nullptr);
+        }
         if (this->_device != VK_NULL_HANDLE)
         {
             vkDestroyDevice(_device, nullptr);
@@ -553,6 +744,7 @@ vulkan_context::~vulkan_context()
             vkDestroySurfaceKHR(_instance, _surface, nullptr);
             _surface = VK_NULL_HANDLE;
         }
+    
         #ifndef NDEBUG
             if (this->_instance && _debug_messenger)
             {
