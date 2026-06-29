@@ -38,7 +38,7 @@ void vulkan_context::init_vulkan()
     pick_physical_device();
     create_logical_device();
     create_swapchain();
-    // create image views
+    create_image_views();
 }
 
 
@@ -549,12 +549,6 @@ void vulkan_context::create_logical_device()
 }
 
 
-// SWAPCHAIN
-// Vulkan ne possède pas de concept comme le framebuffer par défaut, et nous devons donc créer une infrastructure
-// qui contiendra les buffers sur lesquels nous effectuerons les rendus avant de les présenter à l'écran. 
-// Cette infrastructure s'appelle swap chain sur Vulkan et doit être créée explicitement. 
-// La swap chain est essentiellement une file d'attente d'images attendant d'être affichées
-
 // swapchain adequate or not for a given logical device
 swapchain_support_details vulkan_context::query_swapchain_support(VkPhysicalDevice device)
 {
@@ -605,8 +599,8 @@ VkSurfaceFormatKHR vulkan_context::choose_swap_surface_format(const std::vector<
             return available_format;
         }
     }
-    if(available_formats.size() > 0)
-        return (available_formats[0]);
+    //if(available_formats.size() > 0)
+    return (available_formats[0]);
 }
 // best presentmode possible -> 
 VkPresentModeKHR vulkan_context::choose_swap_present_mode(const std::vector<VkPresentModeKHR> &available_present_modes)
@@ -618,6 +612,7 @@ VkPresentModeKHR vulkan_context::choose_swap_present_mode(const std::vector<VkPr
         les images présentes dans la queue sont simplement remplacées par de nouvelles. 
         Ce mode peut être utilisé pour implémenter le triple buffering, qui vous permet d'éliminer le tearing 
         tout en réduisant le temps de latence entre le rendu et l'affichage qu'une file d'attente implique. 
+        (1 front buffer ) + (2 back buffers)
         -> ready buffer -> rendering buffer -> presenting buffer -> 
     */
     for (const auto& available_present_mode : available_present_modes) {
@@ -662,7 +657,32 @@ VkExtent2D vulkan_context::choose_swap_extent(const VkSurfaceCapabilitiesKHR& ca
 }
 
 
-
+// [SWAPCHAIN]
+// Vulkan ne possède pas de concept comme le framebuffer par défaut, et nous devons donc créer une infrastructure
+// qui contiendra les buffers sur lesquels nous effectuerons les rendus avant de les présenter à l'écran. 
+// Cette infrastructure s'appelle swap chain sur Vulkan et doit être créée explicitement. 
+// La swap chain est essentiellement une file d'attente d'images attendant d'être affichées
+/*
+VkSwapchainKHR
+    │
+    ├── VkImage
+    │       │
+    │       └── VkImageView
+    │               │
+    │               └── VkFramebuffer
+    │
+    ├── VkImage
+    │       │
+    │       └── VkImageView
+    │               │
+    │               └── VkFramebuffer
+    │
+    └── VkImage
+            │
+            └── VkImageView
+                    │
+                    └── VkFramebuffer
+*/
 void    vulkan_context::create_swapchain()
 {
     swapchain_support_details swapchain_support = this->query_swapchain_support(this->_physical_device);
@@ -725,6 +745,33 @@ void    vulkan_context::create_swapchain()
 
 
 
+// [IMAGE VIEWS]
+void vulkan_context::create_image_views()
+{
+    this->_swapchain_imagesviews.resize(this->_swapchain_images.size());
+    // each image of the swapchain
+    for(size_t i = 0; i < this->_swapchain_images.size(); i++)
+    {
+        VkImageViewCreateInfo imgview_info{};
+        imgview_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        imgview_info.image = _swapchain_images[i];
+        imgview_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        imgview_info.format = this->_swapchain_image_format;
+        imgview_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        imgview_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        imgview_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        imgview_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        imgview_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        imgview_info.subresourceRange.baseMipLevel = 0;
+        imgview_info.subresourceRange.levelCount = 1;
+        imgview_info.subresourceRange.baseArrayLayer = 0;
+        imgview_info.subresourceRange.layerCount = 1;
+        if (vkCreateImageView(this->_device, &imgview_info, nullptr, &(_swapchain_imagesviews[i])) != VK_SUCCESS) {
+            throw std::runtime_error("échec de la création d'une image view!");
+        }
+    }
+}
+
 
 vulkan_context::~vulkan_context()
 {
@@ -736,6 +783,9 @@ vulkan_context::~vulkan_context()
         }
         if (this->_device != VK_NULL_HANDLE)
         {
+            for (auto img_view : this->_swapchain_imagesviews) {
+                vkDestroyImageView(this->_device, img_view, nullptr);
+            }
             vkDestroyDevice(_device, nullptr);
             _device = VK_NULL_HANDLE;
         }

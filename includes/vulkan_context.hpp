@@ -101,6 +101,9 @@ class vulkan_context
         VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities);
         void create_swapchain();
 
+        // image views
+        void create_image_views();
+
     private:
         window& _window;
 
@@ -128,11 +131,11 @@ class vulkan_context
 
         // swapchain
         VkSwapchainKHR _swapchain;
-        std::vector<VkImage> _swapchain_images;
-        VkFormat _swapchain_image_format;
         VkExtent2D _swapchain_extent;
-        // std::vector<VkImageView> _imageViews;
-
+        VkFormat _swapchain_image_format;
+        std::vector<VkImage> _swapchain_images;
+        std::vector<VkImageView> _swapchain_imagesviews;
+    
         // VkRenderPass _renderPass;
         // VkPipeline _pipeline;
         // VkPipelineLayout _pipelineLayout;
